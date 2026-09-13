@@ -40,7 +40,7 @@ export function back() {
         inline_keyboard: [
             [
                 {
-                text: 'На главное меню', 
+                text: 'В главное меню', 
                 callback_data: 'to_main'
                 }
             ],

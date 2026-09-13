@@ -1,6 +1,7 @@
 import { telegram } from "./telegram.js";
-import { mainMenu } from "./keyboards.js";
-import { back } from "./keyboards.js";
+import { mainMenu, back } from "./keyboards.js";
+import { setSession, getSession, updateSessionData } from "../db/sessions.js";
+
 
 export default {
     async fetch(request, env) {
@@ -35,6 +36,7 @@ export default {
 async function handleMessage(message, env) {
     const chatId = message.chat.id;
     const text = message.text;
+	const session = await getSession(chatId, env);
 
     if (!text) {
         return;
@@ -51,16 +53,170 @@ async function handleMessage(message, env) {
 
         return;
     }
+
+	if (session.state === "waiting_name") {
+		await updateSessionData(
+			chatId,
+			"name",
+			text,
+			env
+		);
+
+		await setSession(
+			chatId,
+			"waiting_age",
+			env
+		);
+	
+		await telegram("sendMessage", {
+			chat_id: chatId,
+			text: "Сколько тебе лет?"
+		}, env);
+	
+		return;
+	}
+
+	if (session.state === "waiting_age") {
+		const age = Number(text);
+	
+		if (!Number.isInteger(age) || age < 14 || age > 100) {
+			await telegram("sendMessage", {
+				chat_id: chatId,
+				text: "Введи возраст числом, например: 20"
+			}, env);
+	
+			return;
+		}
+	
+		await updateSessionData(
+			chatId,
+			"age",
+			age,
+			env
+		);
+	
+		await setSession(
+			chatId,
+			"waiting_city",
+			env
+		);
+	
+		await telegram("sendMessage", {
+			chat_id: chatId,
+			text: "В каком городе ты живёшь?"
+		}, env);
+	
+		return;
+	}
+
+	if (session.state === "waiting_city") {
+		await updateSessionData(
+			chatId,
+			"city",
+			text,
+			env
+		);
+	
+		await setSession(
+			chatId,
+			"waiting_height",
+			env
+		);
+	
+		await telegram("sendMessage", {
+			chat_id: chatId,
+			text: "Какой у тебя рост в сантиметрах?"
+		}, env);
+	
+		return;
+	}
+
+	if (session.state === "waiting_height") {
+		const height = Number(text);
+	
+		if (!Number.isInteger(height) || height < 130 || height > 230) {
+			await telegram("sendMessage", {
+				chat_id: chatId,
+				text: "Введи рост в сантиметрах, например: 183"
+			}, env);
+	
+			return;
+		}
+	
+		await updateSessionData(
+			chatId,
+			"height",
+			height,
+			env
+		);
+	
+		await setSession(
+			chatId,
+			"waiting_weight",
+			env
+		);
+	
+		await telegram("sendMessage", {
+			chat_id: chatId,
+			text: "Какой у тебя вес в кг?"
+		}, env);
+	
+		return;
+	}
+
+	if (session.state === "waiting_weight") {
+		const weight = Number(text);
+	
+		if (
+			!Number.isFinite(weight) ||
+			weight < 35 ||
+			weight > 250
+		) {
+			await telegram("sendMessage", {
+				chat_id: chatId,
+				text: "Введи вес числом, например: 72"
+			}, env);
+	
+			return;
+		}
+	
+		await updateSessionData(
+			chatId,
+			"weight",
+			weight,
+			env
+		);
+	
+		await setSession(
+			chatId,
+			"waiting_clothing_size",
+			env
+		);
+	
+		await telegram("sendMessage", {
+			chat_id: chatId,
+			text: "Какой размер одежды ты обычно носишь?"
+		}, env);
+	
+		return;
+	}
 }
 
-async function handleCallbacks(callback, env) {
-	const chatId = callback.massage_chat.id;
+async function handleCallback(callback, env) {
+	const chatId = callback.message.chat.id;
 	const data = callback.data; 
 
-	if (data === 'lead_start') {
+	if (data === 'start_lead') {
 		await telegram("answerCallbackQuery", {
 			callback_query_id: callback.id
 		}, env)
+
+		await setSession(
+			chatId,
+			"waiting_name",
+			env
+		);
+	
 
 		await telegram("sendMessage", {
 			chat_id: chatId, 
@@ -78,7 +234,7 @@ async function handleCallbacks(callback, env) {
 		await telegram("sendMessage", {
 			chat_id: chatId, 
 			text: "Здесь ты можешь заказать любые вещи с любых платформ Китая: TaoBao, Pinduoduo, Poizon.\n\nПомимо этого доставляем брендовые легит вещи с бутиков, парфюм и то, на что необходим китайский ID.\nПока что эта страница бота в разработке, поэтому свяжись со мной для заказа в меню",
-			reply_markup: back
+			reply_markup: back()
 		}, env)
 
 		return;
@@ -92,7 +248,7 @@ async function handleCallbacks(callback, env) {
 		await telegram("sendMessage", {
 			chat_id: chatId, 
 			text: "Твои данные таковы. Скажи, если нужно что то изменить", 
-		})
+		}, env)
 
 		return;
 	}

@@ -11,6 +11,8 @@ CREATE TABLE leads (
     user_id INTEGER NOT NULL,
 
     service TEXT,
+
+    name TEXT,
     city TEXT,
     age INTEGER,
     height INTEGER,
@@ -28,9 +30,10 @@ CREATE TABLE leads (
     FOREIGN KEY (user_id) REFERENCES users(id)
 );
 
-CREATE TABLE sessions (
+CREATE TABLE IF NOT EXISTS sessions (
     telegram_id TEXT PRIMARY KEY,
     state TEXT NOT NULL,
+    data TEXT DEFAULT '{}',
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
